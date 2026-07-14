@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间簿 | 神秘实验</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            color: #fff;
+            overflow-x: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+
+        .noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.05;
+            指针-事件： 无;
+            z-index: 1;
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            指针-事件： 无;
+            z-index: 2;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+        }
+
+        .content {
+            max-width: 80rem;
+            width: 100%;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes blurIn {
+            from {
+                filter: blur(10px);
+                opacity: 0;
+            }
+            to {
+                filter: blur(0px);
+                opacity: 1;
+            }
+        }
+
+        @keyframes expandLine {
+            from {
+                width: 0;
+                opacity: 0;
+            }
+            to {
+                width: 12rem;
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(10px);
+            }
+        }
+
+        .title {
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 5rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            background: linear-gradient(90deg, #00f5d4, #9b5de5, #f15bb5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
+            animation: blurIn 1.5s ease-out 0.3s forwards;
+            opacity: 0;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 3rem;
+            }
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: #9ca3af;
+            margin-bottom: 3rem;
+            font-weight: 300;
+            letter-spacing: 0.25em;
+            animation: fadeInUp 1s ease-out 0.8s forwards;
+            opacity: 0;
+        }
+
+        @media (max-width: 768px) {
+            .subtitle {
+                font-size: 1rem;
+            }
+        }
+
+        .divider {
+            height: 1px;
+            width: 12rem;
+            margin: 0 auto 3rem;
+            background: linear-gradient(90deg, transparent, #00f5d4, transparent);
+            animation: expandLine 1.2s ease-out 1.2s forwards;
+            opacity: 0;
+        }
+
+        .description {
+            max-width: 42rem;
+            margin: 0 auto 2rem;
+            color: #6b7280;
+            font-size: 1.125rem;
+            line-height: 1.75;
+            animation: fadeInUp 1s ease-out 1.5s forwards;
+            opacity: 0;
+        }
+
+        .button {
+            position: relative;
+            padding: 1rem 3rem;
+            border: 1px solid rgba(0, 245, 212, 0.3);
+            color: #00f5d4;
+            font-family: system-ui, -apple-system, sans-serif;
+            letter-spacing: 0.125em;
+            cursor: pointer;
+            background: transparent;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease-out 1.8s forwards;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            transform: scale(1.05);
+            border-color: #00f5d4;
+        }
+
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 245, 212, 0.1);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .button:hover::before {
+            transform: scaleX(1);
+        }
+
+        .button span {
+            position: relative;
+            z-index: 10;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: fadeInUp 0.8s ease-out 2.5s forwards, bounce 2s ease-in-out 3s infinite;
+            opacity: 0;
+        }
+
+        .scroll-indicator-inner {
+            width: 1.5rem;
+            height: 2.5rem;
+            border: 2px solid #4b5563;
+            border-radius: 9999px;
+            display: flex;
+            justify-content: center;
+            padding-top: 0.5rem;
+        }
+
+        .scroll-indicator-dot {
+            width: 0.25rem;
+            height: 0.5rem;
+            background: #00f5d4;
+            border-radius: 9999px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* Mouse follower */
+        .mouse-follower {
+            position: fixed;
+            width: 16rem;
+            height: 16rem;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(0, 245, 212, 0.2) 0%, rgba(155, 93, 229, 0.2) 100%);
+            filter: blur(3rem);
+            pointer-events: none;
+            z-index: 5;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Floating symbols */
+        .symbol {
+            position: absolute;
+            font-size: 2.5rem;
+            opacity: 0.2;
+            animation: float 5s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.1;
+            }
+            50% {
+                transform: translateY(-20px) rotate(10deg);
+                opacity: 0.3;
+            }
+        }
+
+        /* Corner decorations */
+        .corner {
+            position: fixed;
+            width: 8rem;
+            height: 8rem;
+            border-width: 2px;
+            border-style: solid;
+            z-index: 8;
+        }
+
+        .corner-tl {
+            top: 0;
+            left: 0;
+            border-color: rgba(0, 245, 212, 0.3) transparent transparent rgba(0, 245, 212, 0.3);
+        }
+
+        .corner-tr {
+            top: 0;
+            right: 0;
+            border-color: rgba(155, 93, 229, 0.3) rgba(155, 93, 229, 0.3) transparent transparent;
+        }
+
+        .corner-bl {
+            bottom: 0;
+            left: 0;
+            border-color: transparent transparent rgba(241, 91, 181, 0.3) rgba(241, 91, 181, 0.3);
+        }
+
+        .corner-br {
+            bottom: 0;
+            right: 0;
+            border-color: transparent rgba(255, 107, 107, 0.3) rgba(255, 107, 107, 0.3) transparent;
+        }
+
+        /* Particle */
+        .particle {
+            position: fixed;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            pointer-events: none;
+            z-index: 6;
+        }
+    </style>
+</head>
+<body>
+    <div class="noise"></div>
+    <div class="scanline"></div>
+    
+    <!-- Mouse follower -->
+    <div class="mouse-follower" id="mouseFollower"></div>
+    
+    <!-- Corner decorations -->
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+    
+    <!-- Floating symbols -->
+    <div class="symbol" style="left: 10%; top: 15%; color: #00f5d4; animation-delay: 0s;">◈</div>
+    <div class="symbol" style="left: 18%; top: 22%; color: #9b5de5; animation-delay: 0.5s;">◇</div>
+    <div class="symbol" style="left: 26%; top: 29%; color: #00f5d4; animation-delay: 1s;">△</div>
+    <div class="symbol" style="left: 34%; top: 36%; color: #9b5de5; animation-delay: 1.5s;">○</div>
+    <div class="symbol" style="left: 42%; top: 43%; color: #00f5d4; animation-delay: 2s;">⬡</div>
+    <div class="symbol" style="left: 50%; top: 50%; color: #9b5de5; animation-delay: 2.5s;">⬢</div>
+    <div class="symbol" style="left: 58%; top: 57%; color: #00f5d4; animation-delay: 3s;">◎</div>
+    <div class="symbol" style="left: 66%; top: 64%; color: #9b5de5; animation-delay: 3.5s;">◉</div>
+    <div class="symbol" style="left: 74%; top: 71%; color: #00f5d4; animation-delay: 4s;">✧</div>
+    <div class="symbol" style="left: 82%; top: 78%; color: #9b5de5; animation-delay: 4.5s;">✦</div>
+    
+    <div class="container">
+        <div class="content">
+            <h1 class="title">Time book</h1>
+            <p class="subtitle">REALITY IS AN ILLUSION</p>
+            <div class="divider"></div>
+            <p class="description">
+                在无尽的循环中，真相若隐若现。探索未知的边界，<br>
+                感受神秘力量的牵引...
+            </p>
+            <button class="button">
+                <span>BEGIN EXPERIENCE</span>
+            </button>
+            <div class="scroll-indicator">
+                <div class="scroll-indicator-inner">
+                    <div class="scroll-indicator-dot"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Mouse follower
+        const follower = document.getElementById('mouseFollower');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let currentX = mouseX;
+        let currentY = mouseY;
+        
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            // Create trail particles occasionally
+            if (Math.random() > 0.85) {
+                createParticle(e.clientX, e.clientY);
+            }
+        });
+        
+        function animate() {
+            // 平滑跟随
+            currentX += (mouseX - currentX) * 0.1;
+            currentY += (mouseY - currentY) * 0.1;
+            follower.style.left = currentX + 'px';
+            follower.style.top = currentY + 'px';
+            requestAnimationFrame(animate);
+        }
+        animate();
+        
+        // 粒子生成
+        const colors = ['#00f5d4', '#9b5de5', '#f15bb5', '#ff6b6b'];
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = (x + (Math.random() - 0.5) * 20) + 'px';
+            particle.style.top = (y + (Math.random() - 0.5) * 20) + 'px';
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.backgroundColor = color;
+            particle.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+            document.body.appendChild(particle);
+            
+            // 动画粒子
+            let opacity = 1;
+            let scale = 0;
+            let posY = y;
+            const startTime = Date.now();
+            
+            函数 animateParticle() {
+                const elapsed = Date.now() - startTime;
+                如果 (elapsed > 1500) {
+                    particle.remove();
+                    return;
+                }
+                
+                const progress = elapsed / 1500;
+                opacity = 1 - progress;
+                scale = progress < 0.5 ? progress * 3 : (1 - progress) * 3;
+                posY = y - progress * 50;
+                
+                particle.style.opacity = opacity;
+                particle.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                particle.style.top = posY + 'px';
+                
+                requestAnimationFrame(animateParticle);
+            }
+            animateParticle();
+        }
+    </script>
+</body>
+</html>
+standalone.html
